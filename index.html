@@ -141,7 +141,14 @@
   nameDisplay.textContent = username;
   nameInputDiv.style.display = 'none';
   mainDiv.style.display = 'block';
-  checkAndAutoSetStatus();
+  checkAndAutoSetStatus(() => {
+    nameInputDiv.style.display = 'none';
+    mainDiv.style.display = 'block';
+  }, () => {
+    alert("أنت خارج نطاق الموقع، لم يتم تسجيل حضورك.");
+    localStorage.removeItem("name");
+    username = "";
+  });
     }
 
     window.saveName = function() {
@@ -151,7 +158,14 @@
   nameDisplay.textContent = username;
   nameInputDiv.style.display = 'none';
   mainDiv.style.display = 'block';
-  checkAndAutoSetStatus();
+  checkAndAutoSetStatus(() => {
+    nameInputDiv.style.display = 'none';
+    mainDiv.style.display = 'block';
+  }, () => {
+    alert("أنت خارج نطاق الموقع، لم يتم تسجيل حضورك.");
+    localStorage.removeItem("name");
+    username = "";
+  });
 };
     };
     ;
@@ -220,9 +234,8 @@
   </script>
 <footer style="margin-top: 50px; font-size: 0.9rem; opacity: 0.6;">جميع الحقوق محفوظة © أحمد آل ناصر</footer>
 <script>
-function checkAndAutoSetStatus() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(pos => {
+function checkAndAutoSetStatus(successCallback, failureCallback) {
+  if (!navigator.geolocation) return;pos => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
 
@@ -230,11 +243,15 @@ function checkAndAutoSetStatus() {
     const targetLon = 49.9543;
 
     const distance = getDistanceFromLatLonInMeters(lat, lon, targetLat, targetLon);
-    if (distance < 100) {
+    if (distance < 1000 {
       set(ref(db, 'presence/' + username), {
         status: 'متواجد',
         timestamp: Date.now()
       });
+      if (typeof successCallback === 'function') successCallback();
+    } else {
+      if (typeof failureCallback === 'function') failureCallback();
+    });
     } else {
       alert("أنت خارج نطاق الموقع، لم يتم تسجيل حضورك تلقائيًا.");
     }

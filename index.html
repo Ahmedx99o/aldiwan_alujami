@@ -1,4 +1,256 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<!-- الكود هنا سيتم استعادته من النسخة الحالية في الكانفاس -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>حضور الجلسة</title>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">function checkAndAutoSetStatus() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    const targetLat = 26.5689;
+    const targetLon = 49.9543;
+
+    const distance = getDistanceFromLatLonInMeters(lat, lon, targetLat, targetLon);
+    if (distance < 100) {
+      set(ref(db, 'presence/' + username), {
+        status: 'متواجد',
+        timestamp: Date.now()
+      });
+    } else {
+      alert("أنت خارج نطاق الموقع، لم يتم تسجيل حضورك تلقائيًا.");
+    }
+  });
+}
+
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+</script>
+
+
+</script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      background-color: #121212;
+      color: #ffffff;
+      padding: 20px;
+      margin: 0;
+    }
+    input, button {
+      font-size: 1.1rem;
+    }
+    input {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #1e1e1e;
+      color: #fff;
+      width: 90%;
+      max-width: 300px;
+    }
+    .status {
+      margin: 20px 0;
+    }
+    button {
+      padding: 12px 25px;
+      margin: 10px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .on {
+      background-color: #00c853;
+      color: white;
+    }
+    .off {
+      background-color: #d32f2f;
+      color: white;
+    }
+    .on:hover {
+      background-color: #00e676;
+    }
+    .off:hover {
+      background-color: #ef5350;
+    }
+    #list {
+      margin-top: 30px;
+      text-align: right;
+      max-width: 400px;
+      margin-inline: auto;
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(255,255,255,0.05);
+    }
+    #list button {
+      margin-right: 10px;
+      background-color: #444;
+      color: #fff;
+      padding: 4px 10px;
+      font-size: 0.9rem;
+      border-radius: 5px;
+    }
+    .extra-controls {
+      margin-top: 40px;
+      border-top: 1px solid #444;
+      padding-top: 20px;
+    }
+    @media screen and (max-width: 600px) {
+      h1 { font-size: 1.5rem; }
+      button { width: 90%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>📍 حضور الجلسة</h1>
+  <div id="nameInput">
+    <input type="text" id="username" placeholder="اكتب اسمك" />
+    <button onclick="saveName()">دخول</button>
+  </div>
+  <div id="main" style="display:none">
+    <p>مرحبًا <strong id="nameDisplay"></strong>!</p>
+    <div class="status">
+      <button onclick="location.reload()">تحديث القائمة</button>
+</div>
+    <div id="list">
+      <h3>المتواجدون الآن: <span id="countDisplay">0</span></h3>
+      <ul id="presentList"></ul>
+    </div>
+    <div class="extra-controls">
+      <h3>🧑‍🤝‍🧑 تسجيل حضور لشخص آخر</h3>
+      <input type="text" id="otherName" placeholder="اسم الشخص الآخر" />
+      <div>
+        <button class="on" onclick="setOtherStatus('متواجد')">✅ متواجد</button>
+        <button class="off" onclick="setOtherStatus('غير متواجد')">❌ طلعت</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDU5R7oKM125l5TsjNrTf--EZK0Y43GJO8",
+      authDomain: "diwan-al-ajami.firebaseapp.com",
+      databaseURL: "https://diwan-al-ajami-default-rtdb.firebaseio.com",
+      projectId: "diwan-al-ajami",
+      storageBucket: "diwan-al-ajami.firebasestorage.app",
+      messagingSenderId: "252336738977",
+      appId: "1:252336738977:web:6888cf755f804ddb9356e0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const usernameInput = document.getElementById("username");
+    const nameDisplay = document.getElementById("nameDisplay");
+    const nameInputDiv = document.getElementById("nameInput");
+    const mainDiv = document.getElementById("main");
+
+    let username = localStorage.getItem("name") || "";
+    if (username) {
+  nameDisplay.textContent = username;
+  nameInputDiv.style.display = 'none';
+  mainDiv.style.display = 'block';
+  checkAndAutoSetStatus();
+    }
+
+    window.saveName = function() {
+  username = usernameInput.value.trim();
+  if (!username) return;
+  localStorage.setItem("name", username);
+  nameDisplay.textContent = username;
+  nameInputDiv.style.display = 'none';
+  mainDiv.style.display = 'block';
+  checkAndAutoSetStatus();
+};
+    };
+    ;
+      
+    window.setStatus = function(status) {
+      set(ref(db, 'presence/' + username), {
+        status: status,
+        timestamp: Date.now()
+      });
+    };
+
+    window.setOtherStatus = function(status) {
+      const otherName = document.getElementById("otherName").value.trim();
+      if (!otherName) return;
+      set(ref(db, 'presence/' + otherName), {
+        status: status,
+        timestamp: Date.now()
+      });
+    };
+
+    function forceStatusOff(targetUser) {
+      set(ref(db, 'presence/' + targetUser), {
+        status: 'غير متواجد',
+        timestamp: Date.now()
+      });
+    }
+
+    const presentList = document.getElementById("presentList");
+    
+    let previousUsers = new Set();
+    const presenceRef = ref(db, 'presence');
+
+    onValue(presenceRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const entries = Object.entries(data);
+      presentList.innerHTML = '';
+      const currentUsers = new Set();
+      for (const [user, info] of entries) {
+        if (info.status === 'متواجد') {
+          const li = document.createElement("li");
+          const diffMs = Date.now() - info.timestamp;
+          const minutesAgo = Math.floor(diffMs / 60000);
+          const hours = Math.floor(minutesAgo / 60);
+          const remainingMinutes = minutesAgo % 60;
+          const timeText = minutesAgo < 60
+            ? `${minutesAgo} دقيقة`
+            : (remainingMinutes > 0
+              ? `${hours} ساعة و${remainingMinutes} دقيقة`
+              : `${hours} ساعة`);
+          li.textContent = `${user} - منذ ${timeText}`;
+          currentUsers.add(user);
+          
+          if (username) {
+            const kickBtn = document.createElement("button");
+            kickBtn.textContent = "❌ غادر";
+            kickBtn.onclick = () => forceStatusOff(user);
+            li.appendChild(kickBtn);
+          }
+          presentList.appendChild(li);
+        }
+      }
+      
+      document.getElementById("countDisplay").textContent = currentUsers.size;
+      previousUsers = currentUsers;
+    });
+  </script>
+<footer style="margin-top: 50px; font-size: 0.9rem; opacity: 0.6;">جميع الحقوق محفوظة © أحمد آل ناصر</footer>
+</body>
 </html>
